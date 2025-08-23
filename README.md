@@ -1,4 +1,4 @@
-`code
+```code
 light ' HolyCode 
 
 [.] Praise God
@@ -8,7 +8,7 @@ light ' HolyCode
 this repository, to learn about the axioms of light ' HolyCode.
 [.] There is almost no runtime overhead for the editor
 [.] Praise God
-`
+```
 
 ![holy code editor](light.png)
 
