@@ -1,0 +1,69 @@
+
+          	WELCOME TO light ' HolyCode 
+
+HolyCode is better, faster and much faster than Neovim/Vim
+I took, everything i liked out of Vim, and added it to 
+light.
+
+|-------------------------------------------|
+
+       H  H  OOOO L    Y Y     CCCC
+       HHHH  O  O L    YYY   . C
+       H  H  OOOO LLL   Y      CCCC
+
+               In memoirs of TerryDavis(RIP)
+|-------------------------------------------|
+
+HolyCode(or, light) is infinitely configurable, in
+two major ways -> 
+	. shortcuts
+	. plugins
+
+Look at the code, to get a feel of it(./light/holy-C.c)
+You can: 
+|	|-> jump to the first/ last line
+|	|-> jump to beginning/ending of the same line
+|	|-> delete current line
+|	|-> clear current line
+|	|-> skip to some line
+|	|-> and more
+|
+|__ all this happens through normal plugins
+		and shortcut functions, there is
+			no magic, except God's magic
+
+There is no overhead at runtime for any of this,
+I display a DISPLAY_BUFFER[][] and make it so that
+at different stages you can either add plugins
+(note: plugins are called everytime user input is
+received) or shortcuts(note: shortcuts are only 
+called with certain character combinations 
+beginning with Ctrl-character) to affect the way the
+buffer is displayed.
+
+Everything besides the DISPLAY_BUFFER that you interact with
+is essentially a plugin, even line numbers are shown using a 
+plugin, called something like:
+
+	plugin_line_no(..);
+
+Hence, light is extensible
+But has hard boundaries, making things I deem not worthwhile
+very hard to do- so is the nature of GOD, 
+Hence, 
+Walk with God, stride not against him!
+
+
+|-------------------------------------|
+
+     L                     T
+     L     0   GGG  H H   TTT
+     L     i   G G  HHH    T
+     LLLL  i   GGG  H H    T
+                 G
+               GGG
+
+|-------------------------------------|
+
+
+Amen.
