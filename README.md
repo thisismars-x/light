@@ -1,3 +1,4 @@
+`code
 light ' HolyCode 
 
 [.] Praise God
@@ -7,6 +8,7 @@ light ' HolyCode
 this repository, to learn about the axioms of light ' HolyCode.
 [.] There is almost no runtime overhead for the editor
 [.] Praise God
+`
 
 ![holy code editor](light.png)
 
@@ -64,6 +66,7 @@ position within that ROW unlike the normal Enter key
 
 Adding shortcuts, and plugins, is simple
 God loves simple things heartfully.
+
 
 RIP Terry Davis
 Praise God
