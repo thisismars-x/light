@@ -61,6 +61,7 @@ before crashing out
 #define MAX_NUMBER_OF_COLS    0x0400 
 #define DISPLAY_BUFFER_LEN    MAX_NUMBER_OF_ROWS * MAX_NUMBER_OF_COLS 
 #define SCRATCH_FILE          ".scratch"
+#define PATHMAX               0x64 
 
 /*
 ------------------------------------
@@ -69,12 +70,16 @@ before crashing out
 last line has '=filename' but filename
 is empty
 
+- CALLED_THROUGH_SHORTCUT is set when 
+shortcut_save_file is called
+
 ------------------------------------
 */
-#define bool                u_int8_t 
-#define true                  0x0001
-#define false            !      true
-#define U_NOFILE                 -10
+#define bool                     u_int8_t 
+#define true                       0x0001
+#define false                 !      true
+#define U_NOFILE                      -10
+#define CALLED_THROUGH_SHORTCUT      true
 
 /*
 ------------------------------------
@@ -97,7 +102,6 @@ thread, to display
 
 - handler_SIGINT sets EXIT_FLAG and exits
 
-
 - SAVE_FILE is used if the last line in
 the buffer has '=<filename>' format
 
@@ -107,6 +111,12 @@ scratched after writing to it
 - INIT_FILE is set if DISPLAY_BUFFER is 
 constructed using a file instead of from
 scratch
+
+- INIT_ARG_FNAME is set to argv[1] if initialized 
+with a file, like, so: light <fname>
+
+- check_EXIT exits, by checking EXIT_FLAG, and
+is aware if it was called_through_shortcut
 
 ------------------------------------
 */
@@ -119,13 +129,18 @@ bool      EXIT_FLAG      = false;
 bool      SAVE_FILE      = false;
 bool      IGN_FILE       = true;
 bool      INIT_FILE      = false;
+char      INIT_ARG_FNAME[PATHMAX];
 char      DISPLAY_BUFFER[MAX_NUMBER_OF_ROWS][MAX_NUMBER_OF_COLS];
-void      check_EXIT(char* filename) {
+void      check_EXIT(char* filename, bool called_through_shortcut) {
+
+  // if called_through_shortcut, just update that file, and continue  
+  if(called_through_shortcut == CALLED_THROUGH_SHORTCUT) { return; }
+
   if(EXIT_FLAG) {
     if(SAVE_FILE) {
-      fprintf(stdout, "\nbuffer written to '%s', bye!\n", filename);
+        fprintf(stdout, "\nbuffer written to '%s', bye!\n", filename);
     } else {
-      fprintf(stdout, "\nbuffer scratched away, bye!\n");
+        fprintf(stdout, "\nbuffer scratched away, bye!\n");
     }
 
     // restore cursor visibility
@@ -133,14 +148,13 @@ void      check_EXIT(char* filename) {
     fflush(stdout);
 
     _exit(0);
-
   }
 
   return;
 }
 void      handler_SIGINT() {
   EXIT_FLAG = true;
-  check_EXIT("");
+  check_EXIT("", !CALLED_THROUGH_SHORTCUT);
 
   return;
 }
@@ -176,7 +190,7 @@ void get_terminal_size() {
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1) {
         fprintf(stderr, "grave error, can not recover(IOCTL), bye\n");
         EXIT_FLAG = true;
-        check_EXIT("");
+        check_EXIT("", !CALLED_THROUGH_SHORTCUT);
     }
 
     TERM_ROW = ws.ws_row;
@@ -228,6 +242,7 @@ struct Key             current_char;
 pthread_mutex_t        current_char_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t         current_char_cond = PTHREAD_COND_INITIALIZER;
 pthread_t              get_input, display_buffer; 
+
 
 
 // Read input continously from terminal and 
@@ -325,6 +340,9 @@ void plugin_highlight(char* result, char* row, int line_no) {
     strcat(result, temp_line);
 }
 
+// plugins and shortcuts go hand in hand, this is an example
+// where a plugin might call a shortcut 
+void shortcut_delete_curr_line(char);
 
 // This plugin helps you to go to certain rows,
 // use as 
@@ -340,9 +358,12 @@ void plugin_goto_line(char* result, char* buffer, int i) {
             }
             line_num[i-1] = '\0';
 
+		 // Remove the line in which, i type ':number'
+		 shortcut_delete_curr_line('D');
+
             int target_row = atoi(line_num);
             if((target_row > 0) && (target_row < NUMBER_OF_ROWS)) {
-                CURRENT_ROW = target_row - 1;
+                CURRENT_ROW = target_row;
             }
 
             buffer[0] = '\0';
@@ -377,7 +398,7 @@ char* join_display_buffer() {
 }
 
 // Fast, parallel scatter-gather IO
-void save_buffer_to_file(const char* filename) {
+void save_buffer_to_file(const char* filename, bool called_through_shortcut) {
     struct iovec iov[NUMBER_OF_ROWS];
 
     for (int i = 0; i < NUMBER_OF_ROWS; i++) {
@@ -404,17 +425,22 @@ void save_buffer_to_file(const char* filename) {
         fprintf(stderr, "Error opening file: %s\n", filename);
         for (int i = 0; i < NUMBER_OF_ROWS; i++) free(iov[i].iov_base);
         IGN_FILE = SAVE_FILE = EXIT_FLAG = true;
-        save_buffer_to_file(SCRATCH_FILE);
+        save_buffer_to_file(SCRATCH_FILE, !CALLED_THROUGH_SHORTCUT);
     }
 
     writev(fd, iov, NUMBER_OF_ROWS);
     close(fd);
 
     for (int i = 0; i < NUMBER_OF_ROWS; i++) free(iov[i].iov_base);
-    IGN_FILE = false;
-    SAVE_FILE = true;
-    EXIT_FLAG = true;
-    check_EXIT(filename);
+    if(called_through_shortcut) {
+        IGN_FILE = SAVE_FILE = EXIT_FLAG = false;
+        check_EXIT(filename, called_through_shortcut);
+    } else {
+        IGN_FILE = false;
+        SAVE_FILE = true;
+        EXIT_FLAG = true;
+        check_EXIT(filename, called_through_shortcut);
+    }
 
     return;
 }
@@ -440,17 +466,17 @@ void checkpoint() {
 
         if(strlen(filename) == 0) {
             SAVE_FILE = IGN_FILE = EXIT_FLAG = true;
-            save_buffer_to_file(SCRATCH_FILE);
+            save_buffer_to_file(SCRATCH_FILE, !CALLED_THROUGH_SHORTCUT);
         }
 
         if(strncmp(filename, "scratch", 8) == 0) {
             SAVE_FILE = false; 
             IGN_FILE = true;
             EXIT_FLAG = true;
-            check_EXIT("");
+            check_EXIT("", !CALLED_THROUGH_SHORTCUT);
         } 
 
-        save_buffer_to_file(filename);
+        save_buffer_to_file(filename, !CALLED_THROUGH_SHORTCUT);
     }
 
     return;
@@ -467,7 +493,7 @@ void normalize_ROW() {
         fprintf(stderr, "you can not extend NUMBER_OF_ROWS beyond MAX_NUMBER_OF_ROWS(unrecoverable error)\n");
         fprintf(stderr, "you can try changing MAX_NUMBER_OF_ROWS\n");
         IGN_FILE = SAVE_FILE = EXIT_FLAG = true;
-        save_buffer_to_file(SCRATCH_FILE);
+        save_buffer_to_file(SCRATCH_FILE, !CALLED_THROUGH_SHORTCUT);
     }
 
     return;
@@ -486,7 +512,7 @@ void normalize_COL() {
         fprintf(stderr, "you can not extend beyond MAX_NUMBER_OF_COLS(unrecoverable error)\n");
         fprintf(stderr, "you can try changing MAX_NUMBER_OF_COLS\n");
         IGN_FILE = SAVE_FILE = EXIT_FLAG = true;
-        save_buffer_to_file(SCRATCH_FILE);  
+        save_buffer_to_file(SCRATCH_FILE, !CALLED_THROUGH_SHORTCUT);  
     }
 
     return;
@@ -608,6 +634,19 @@ void shortcut_goto_last_line(char ch) {
     return;
 }
 
+// This shortcut updates any file opened with 
+// light <filename>
+// Use with Ctrl + N
+// Be aware though, it might take a bit longer
+// than expect.
+void shortcut_save_file(char ch) {
+    if(INIT_FILE == true) {
+        if(ch == 'N') {
+            save_buffer_to_file(INIT_ARG_FNAME, CALLED_THROUGH_SHORTCUT);
+        }
+    }
+}
+
 
 // This function, pads the string output vertically, 
 // because RAW_MODE disables scrolling
@@ -727,7 +766,7 @@ type,
 void buffer_display() {
   while(true) {
     // check EXIT_FLAG
-    check_EXIT("");
+    check_EXIT("", !CALLED_THROUGH_SHORTCUT);
 
     // lock the mutex acquired by current_char_lock and wait
     // for a signal to be broadcasted
@@ -756,7 +795,7 @@ void buffer_display() {
                 fprintf(stderr, "you have tried to extend, beyond MAX_NUMBER_OF_COLS, which is a grave error\n");
                 fprintf(stderr, "change MAX_NUMBER_OF_COLS to a higher value(RARE CASE)\n");
                 IGN_FILE = SAVE_FILE = EXIT_FLAG = true;
-                save_buffer_to_file(SCRATCH_FILE);
+                save_buffer_to_file(SCRATCH_FILE, !CALLED_THROUGH_SHORTCUT);
             }
             break;
 
@@ -787,7 +826,7 @@ void buffer_display() {
                 fprintf(stderr, "you have tried to extend, beyond MAX_NUMBER_OF_ROWS, which is an unrecoverable error\n");
                 fprintf(stderr, "change MAX_NUMBER_OF_ROWS to a higher value(RARE CASE)\n");
                 IGN_FILE = SAVE_FILE = EXIT_FLAG = true;
-                save_buffer_to_file(SCRATCH_FILE);
+                save_buffer_to_file(SCRATCH_FILE, !CALLED_THROUGH_SHORTCUT);
             }
 
             normalize_COL();
@@ -844,6 +883,7 @@ void buffer_display() {
             shortcut_add_tab(current_char.ch);
             shortcut_goto_first_line(current_char.ch);
             shortcut_goto_last_line(current_char.ch);
+            shortcut_save_file(current_char.ch);
             break;
 
         default: break;
@@ -877,6 +917,8 @@ int main(int argc, char* argv[]) {
                 perror("malloc failed");
                 exit(1);
             }
+
+            strncpy(INIT_ARG_FNAME, argv[1], strlen(argv[1]));
 
             int i = 0;
             while (fgets(temp_line, MAX_NUMBER_OF_COLS, fd_open_file)) {
