@@ -183,20 +183,6 @@ void get_terminal_size() {
     TERM_COL = ws.ws_col;
 }
 
-u_int16_t current_terminal_row() {
-    return (u_int16_t) ((float)CURRENT_ROW/(float)NUMBER_OF_ROWS) * TERM_ROW;
-}
-
-
-// Move cursor to a specific row to simulate scrolling in 
-// raw mode
-void move_cursor_to(int row) {
-    printf("\033[%d;1H", row); 
-    fflush(stdout);
-}
-
-
-
 // What type of key are you pressing?
 enum KeyType {
     KEY_UNKNOWN,
@@ -926,7 +912,7 @@ int main(int argc, char* argv[]) {
     for(int i=0; i<MAX_NUMBER_OF_ROWS; i++) memset(DISPLAY_BUFFER[i], 0, MAX_NUMBER_OF_COLS);
   }
 
-  // current_char at the beginning is empty as well
+  // current_char at the beginning is set to KEY_UNKNOWN
   current_char = (struct Key){ .type = KEY_UNKNOWN, .ch = 0 }; 
 
   // in case of SIGINT, set EXIT_FLAG
@@ -934,6 +920,11 @@ int main(int argc, char* argv[]) {
 
   // set terminal to raw mode
   set_terminal_raw_mode(true);
+
+  // clear the screen and print the initial empty DISPLAY_BUFFER
+  // or the file-content initialized DISPLAY_BUFFER: all the same, to me
+  system("clear");
+  printf("%s", resize_string(join_display_buffer()));
 
   // get terminal sizes
   get_terminal_size();
