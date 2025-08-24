@@ -906,10 +906,10 @@ int main(int argc, char* argv[]) {
     // memory of DISPLAY_BUFFER
     if (argc > 1) {
         char* open_file = argv[1];
-        FILE* fd_open_file = fopen(open_file, "r");
+        FILE* fd_open_file = fopen(open_file, "a+");
 
         if (fd_open_file == NULL) {
-            fprintf(stderr, "File '%s' does not exist, opening a new buffer\n", open_file);
+            fprintf(stderr, "could, not open file: %s\n", open_file);
             INIT_FILE = false; 
         } else {
             char* temp_line = malloc(MAX_NUMBER_OF_COLS);
