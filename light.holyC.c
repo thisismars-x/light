@@ -171,8 +171,6 @@ void set_terminal_raw_mode(bool yes) {
     tcsetattr(STDIN_FILENO, TCSANOW, &new_t);
   } else {
     tcsetattr(STDIN_FILENO, TCSANOW, &old_t);
-
-
   }
 
   // hide cursor
@@ -243,8 +241,6 @@ pthread_mutex_t        current_char_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t         current_char_cond = PTHREAD_COND_INITIALIZER;
 pthread_t              get_input, display_buffer; 
 
-
-
 // Read input continously from terminal and 
 // interpret it as any valid struct Key
 void input() {
@@ -301,6 +297,7 @@ void input() {
 void plugin_show_line_colored(char* result, int line_no) {
    char* c_line_no = malloc(128);
    
+	// highlight only CURRENT_ROW
    if(line_no == CURRENT_ROW) {
     sprintf(c_line_no, "\033[40;37m%3d: \033[0m", line_no); 
    } else {
@@ -354,16 +351,21 @@ void plugin_goto_line(char* result, char* buffer, int i) {
 
             int i;
             for(i=1; i<strlen(buffer); i++) {
+                // fixes ':mango' ~ ':0' problem
+                if(buffer[i] < '0' || buffer[i] > '9') return;
                 line_num[i-1] = buffer[i];
             }
             line_num[i-1] = '\0';
 
-		 // Remove the line in which, i type ':number'
-		 shortcut_delete_curr_line('D');
+		// fixed bad behavior ':0' and ':lastline' were not working
+		// but now they do
+		int target_row = atoi(line_num);
+		if((target_row >= 0) && (target_row <= NUMBER_OF_ROWS)) {
+		        // Remove the line in which, i type ':number'
+		        shortcut_delete_curr_line('D');
 
-            int target_row = atoi(line_num);
-            if((target_row > 0) && (target_row < NUMBER_OF_ROWS)) {
-                CURRENT_ROW = target_row;
+		        // Then change rows
+		        CURRENT_ROW = target_row;
             }
 
             buffer[0] = '\0';
@@ -375,7 +377,6 @@ void plugin_goto_line(char* result, char* buffer, int i) {
 // char* result iterates over all ROWS and COLUMNS, this is a 
 // nice place to use your plugins
 char* join_display_buffer() {
-
 
     size_t total_len = 0;
     for (int i = 0; i <= NUMBER_OF_ROWS && i < MAX_NUMBER_OF_ROWS; i++) {
