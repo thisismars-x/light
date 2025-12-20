@@ -137,8 +137,11 @@ void      check_EXIT(char* filename, bool called_through_shortcut) {
   if(called_through_shortcut == CALLED_THROUGH_SHORTCUT) { return; }
 
   if(EXIT_FLAG) {
-    if(SAVE_FILE) {
-        fprintf(stdout, "\nbuffer written to '%s', bye!\n", filename);
+    system("clear");
+    fflush(stdout);
+    if(SAVE_FILE || INIT_FILE) {
+        if(INIT_FILE) fprintf(stdout, "\nbuffer written to '%s', bye!\n", INIT_ARG_FNAME);
+        else fprintf(stdout, "\nbuffer written to '%s', bye!\n", filename);
     } else {
         fprintf(stdout, "\nbuffer scratched away, bye!\n");
     }
@@ -626,7 +629,7 @@ void shortcut_goto_first_line(char ch) {
     return;
 }
 
-// Go to last line, using Ctrl + E
+// Go to last line, using Ctrl + A
 void shortcut_goto_last_line(char ch) {
     if(ch == 'A') {
         CURRENT_ROW = NUMBER_OF_ROWS;
@@ -639,7 +642,7 @@ void shortcut_goto_last_line(char ch) {
 // light <filename>
 // Use with Ctrl + N
 // Be aware though, it might take a bit longer
-// than expect.
+// than expected
 void shortcut_save_file(char ch) {
     if(INIT_FILE == true) {
         if(ch == 'N') {

@@ -8,6 +8,9 @@ light ' HolyCode
 this repository, to learn about the axioms of light ' HolyCode.
 [.] There is almost no runtime overhead for the editor
 [.] Praise God
+
+light is usable. I wrote a compiler with light as the primary code 
+editor called Orthodox(github.com/thisismars-x/Orthodox), with ~10_000 loc.
 ```
 
 ![holy code editor](light.png)

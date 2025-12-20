@@ -1,7 +1,7 @@
 light ' HolyCode 
 
 [.] Praise God
-[.] If Vim/Neovim is Rust, light/HolyC is C.
+[.] If Vim/Neovim is Rust, light is C
 [.] Designed to get work done, with no checks and restrictions.
 [.] You can look at the holy-code(light.holy-C.c) distributed with
 this repository, to learn about the axioms of light ' HolyCode.

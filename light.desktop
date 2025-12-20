@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=light
+GenericName=holyc
+Exec=/usr/bin/light %f
+Terminal=false
+MimeType=text/plain;
+Categories=Utility;TextEditor;
+Icon=text-editor

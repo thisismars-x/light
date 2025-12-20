@@ -1,12 +1,12 @@
 CC = cc
-CFLAGS = -Wall  -O2
+CFLAGS = -w -O2
 
 TARGET = light
 
 all: $(TARGET)
 
-$(TARGET): light.holyC.c
-	$(CC) $(CFLAGS) -o $(TARGET) light.holyC.c
+$(TARGET): light.HolyCode.c
+	$(CC) $(CFLAGS) -o $(TARGET) light.HolyCode.c
 
 install: $(TARGET)
 	sudo cp $(TARGET) /usr/bin/
