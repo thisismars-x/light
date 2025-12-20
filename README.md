@@ -3,14 +3,16 @@ light ' HolyCode
 
 [.] Praise God
 [.] If Vim/Neovim is Rust, light/HolyC is C.
-[.] Designed to get work done, with no checks and restrictions.
-[.] You can look at the holy-code(light.holy-C.c) distributed with
+[.] Designed to get work done, convenient first, speed second.
+[.] You can look at the holy-code(light.HolyCode.c) distributed with
 this repository, to learn about the axioms of light ' HolyCode.
 [.] There is almost no runtime overhead for the editor
 [.] Praise God
 
-light is usable. I wrote a compiler with light as the primary code 
-editor called Orthodox(github.com/thisismars-x/Orthodox), with ~10_000 loc.
+---
+light works: Orthodox, a compiler under ~10_000 loc written
+in light as the primary code editor at github.com/thisismars-x/Orthodox.
+---
 ```
 
 ![holy code editor](light.png)
