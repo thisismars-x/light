@@ -299,14 +299,7 @@ void input() {
 // lines, too.
 void plugin_show_line_colored(char* result, int line_no) {
    char* c_line_no = malloc(128);
-   
-	// highlight only CURRENT_ROW
-   if(line_no == CURRENT_ROW) {
-    sprintf(c_line_no, "\033[40;37m%3d: \033[0m", line_no); 
-   } else {
-    sprintf(c_line_no, "%3d: ", line_no); 
-   }
-
+   sprintf(c_line_no, "%3d; ", line_no); 
    strcat(result, c_line_no);
 
    free(c_line_no);
@@ -314,31 +307,34 @@ void plugin_show_line_colored(char* result, int line_no) {
 }
 
 // Highlight current row, and current column
+// Some style refactoring
+// Instead of highlighting entire row, and seperately
+// highlighting current col, only highlight curr col
+// in curr row, looks much better
 void plugin_highlight(char* result, char* row, int line_no) {
-    char temp_line[MAX_NUMBER_OF_COLS << 2];
+    char temp_line[MAX_NUMBER_OF_COLS << 8];
     char* ptr = temp_line;
     ptr[0] = '\0';
 
     if (line_no == CURRENT_ROW) {
-        ptr += sprintf(ptr, "\033[44m");
-
         size_t len = strlen(row);
-        for (size_t i = 0; i < len; i++) {
+        for (size_t i = 0; i < len + 1; i++) {
+            char ch = (i < len? row[i] : ' ');
             if ((int)i == CURRENT_COL) {
-                ptr += sprintf(ptr, "\033[40;37m%c\033[44m", row[i]);
+                ptr += sprintf(ptr, "\033[7m%c\033[0m", ch);
             } else {
-                ptr += sprintf(ptr, "%c", row[i]);
+                ptr += sprintf(ptr, "%c", ch);
             }
         }
 
-        // Reset color at end of line
-        ptr += sprintf(ptr, "\033[0m\n");
+        ptr += sprintf(ptr, "\n");
     } else {
         ptr += sprintf(ptr, "%s\n", row);
     }
 
     strcat(result, temp_line);
 }
+
 
 // plugins and shortcuts go hand in hand, this is an example
 // where a plugin might call a shortcut 
