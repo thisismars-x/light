@@ -134,7 +134,7 @@ bool      IGN_FILE       = true;
 bool      INIT_FILE      = false;
 char      INIT_ARG_FNAME[PATHMAX];
 char      DISPLAY_BUFFER[MAX_NUMBER_OF_ROWS][MAX_NUMBER_OF_COLS];
-void save_buffer_to_file(const char*, bool);
+void      save_buffer_to_file(const char*, bool);
 void      check_EXIT(char* filename, bool called_through_shortcut) {
 
   // if called_through_shortcut, just update that file, and continue  
