@@ -55,13 +55,16 @@ space for the display buffer
 your files are stored in case of an error
 before crashing out
 
+- TABSPACE how many spaces a TAB expands to
+
 ------------------------------------
 */
 #define MAX_NUMBER_OF_ROWS    0xFFFF 
 #define MAX_NUMBER_OF_COLS    0x0400 
 #define DISPLAY_BUFFER_LEN    MAX_NUMBER_OF_ROWS * MAX_NUMBER_OF_COLS 
-#define SCRATCH_FILE          ".scratch"
+#define SCRATCH_FILE          ".light-scratch-XXXXXX"
 #define PATHMAX               0x64 
+#define TABSPACE              4
 
 /*
 ------------------------------------
@@ -131,6 +134,7 @@ bool      IGN_FILE       = true;
 bool      INIT_FILE      = false;
 char      INIT_ARG_FNAME[PATHMAX];
 char      DISPLAY_BUFFER[MAX_NUMBER_OF_ROWS][MAX_NUMBER_OF_COLS];
+void save_buffer_to_file(const char*, bool);
 void      check_EXIT(char* filename, bool called_through_shortcut) {
 
   // if called_through_shortcut, just update that file, and continue  
@@ -140,10 +144,13 @@ void      check_EXIT(char* filename, bool called_through_shortcut) {
     system("clear");
     fflush(stdout);
     if(SAVE_FILE || INIT_FILE) {
-        if(INIT_FILE) fprintf(stdout, "\nbuffer written to '%s', bye!\n", INIT_ARG_FNAME);
-        else fprintf(stdout, "\nbuffer written to '%s', bye!\n", filename);
-    } else {
-        fprintf(stdout, "\nbuffer scratched away, bye!\n");
+        if(INIT_FILE) fprintf(stdout, "Saved clean buffer to %s.\n", INIT_ARG_FNAME);
+        else fprintf(stdout, "Saved clean buffer to %s.\n", filename);
+    } else { // if no filename is provided during initialization saves as .scratchfile
+        char fname[] = SCRATCH_FILE;
+        int fd = mkstemp(fname); // only required to get template
+        save_buffer_to_file(fname, false);
+        fprintf(stdout, "Saved dirty buffer to SCRATCH_FILE with template signature %s\n", fname);
     }
 
     // restore cursor visibility
@@ -397,89 +404,46 @@ char* join_display_buffer() {
     return result;
 }
 
-// Fast, parallel scatter-gather IO
+// normal IO compared to before scatter gather io
 void save_buffer_to_file(const char* filename, bool called_through_shortcut) {
-    struct iovec iov[NUMBER_OF_ROWS];
-
-    for (int i = 0; i < NUMBER_OF_ROWS; i++) {
-        // ignore last line ending with '='
-        if(DISPLAY_BUFFER[i][0] == '=') { 
-            if(i == NUMBER_OF_ROWS-1) {
-                break;
-            }
-        }
-
-        size_t len = strlen(DISPLAY_BUFFER[i]);
-        char *temp = malloc(len + 2); 
-
-        strcpy(temp, DISPLAY_BUFFER[i]);
-        temp[len] = '\n';
-        temp[len + 1] = '\0';
-
-        iov[i].iov_base = temp;
-        iov[i].iov_len = len + 1;
-    }
-
     int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd == -1) {
-        fprintf(stderr, "Error opening file: %s\n", filename);
-        for (int i = 0; i < NUMBER_OF_ROWS; i++) free(iov[i].iov_base);
+        perror("open");
         IGN_FILE = SAVE_FILE = EXIT_FLAG = true;
-        save_buffer_to_file(SCRATCH_FILE, !CALLED_THROUGH_SHORTCUT);
+        return;
     }
 
-    writev(fd, iov, NUMBER_OF_ROWS);
+    for (int i = 0; i <= NUMBER_OF_ROWS; i++) {
+        size_t len = strlen(DISPLAY_BUFFER[i]);
+
+        ssize_t w = write(fd, DISPLAY_BUFFER[i], len);
+        if (w != (ssize_t)len) {
+            perror("write");
+            close(fd);
+            IGN_FILE = SAVE_FILE = EXIT_FLAG = true;
+            return;
+        }
+
+        w = write(fd, "\n", 1);
+        if (w != 1) {
+            perror("write");
+            close(fd);
+            IGN_FILE = SAVE_FILE = EXIT_FLAG = true;
+            return;
+        }
+    }
+
     close(fd);
 
-    for (int i = 0; i < NUMBER_OF_ROWS; i++) free(iov[i].iov_base);
-    if(called_through_shortcut) {
+    if (called_through_shortcut) {
         IGN_FILE = SAVE_FILE = EXIT_FLAG = false;
-        check_EXIT(filename, called_through_shortcut);
     } else {
         IGN_FILE = false;
         SAVE_FILE = true;
         EXIT_FLAG = true;
-        check_EXIT(filename, called_through_shortcut);
     }
 
-    return;
-}
-
-// If the last line, ends with '=<filename>',
-// then write the buffer to a filename, and
-// exit program
-void checkpoint() {
-    char* last_line = DISPLAY_BUFFER[NUMBER_OF_ROWS - 1];
-
-    if(last_line[0] == '=') {
-        char filename[0xfff] = {0};
-
-        int j = 0;
-        for(int i=1; last_line[i] != '\0' ;i++) {
-            if(last_line[i] == ' ') {
-                break;
-            } else {
-                filename[j++] += last_line[i];
-            }
-        }
-        filename[j] = '\0';
-
-        if(strlen(filename) == 0) {
-            SAVE_FILE = IGN_FILE = EXIT_FLAG = true;
-            save_buffer_to_file(SCRATCH_FILE, !CALLED_THROUGH_SHORTCUT);
-        }
-
-        if(strncmp(filename, "scratch", 8) == 0) {
-            SAVE_FILE = false; 
-            IGN_FILE = true;
-            EXIT_FLAG = true;
-            check_EXIT("", !CALLED_THROUGH_SHORTCUT);
-        } 
-
-        save_buffer_to_file(filename, !CALLED_THROUGH_SHORTCUT);
-    }
-
-    return;
+    check_EXIT((char*)filename, called_through_shortcut); // type checker : discard const qualifier
 }
 
 // Check for overflow and underflow in CURRENT_ROW 
@@ -782,15 +746,22 @@ void buffer_display() {
                 // Check if we are inserting in the middle of a row
                 // instead of appending to the end
                 if (CURRENT_COL < len) {
-                    memmove(&DISPLAY_BUFFER[CURRENT_ROW][CURRENT_COL + 1],
+                    int t = (current_char.ch == '\t'? 4: 1); // check if tab in middle of insertion
+                    memmove(&DISPLAY_BUFFER[CURRENT_ROW][CURRENT_COL + t],
                             &DISPLAY_BUFFER[CURRENT_ROW][CURRENT_COL],
-                            len - CURRENT_COL + 1);  
+                            len - CURRENT_COL + t);  
                 } else {
                     DISPLAY_BUFFER[CURRENT_ROW][len + 1] = '\0'; 
                 }
-
-                DISPLAY_BUFFER[CURRENT_ROW][CURRENT_COL] = current_char.ch;
-                CURRENT_COL++;
+                if(current_char.ch == '\t') {
+                    for(int i = 0; i < TABSPACE; i++) {
+                        DISPLAY_BUFFER[CURRENT_ROW][CURRENT_COL] = ' ';
+                        CURRENT_COL++;
+                    }
+                } else {
+                    DISPLAY_BUFFER[CURRENT_ROW][CURRENT_COL] = current_char.ch;
+                    CURRENT_COL++;
+                }
             } else {
                 fprintf(stderr, "you have tried to extend, beyond MAX_NUMBER_OF_COLS, which is a grave error\n");
                 fprintf(stderr, "change MAX_NUMBER_OF_COLS to a higher value(RARE CASE)\n");
@@ -800,7 +771,7 @@ void buffer_display() {
             break;
 
         case KEY_ENTER:
-            checkpoint();
+            // checkpoint();
             if (NUMBER_OF_ROWS < MAX_NUMBER_OF_ROWS - 1) {
 
                 // From bottom up, visit each row upto CURRENT_ROW, and shift it 
