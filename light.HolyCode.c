@@ -1,25 +1,66 @@
-//
-// Bless my people, and bless myself.
-// 
-// |-------------------------------------------|
-//
-//       H  H  OOOO L    Y Y     CCCC
-//       HHHH  O  O L    YYY   . C
-//       H  H  OOOO LLL   Y      CCCC
-//
-//               In memoirs of TerryDavis(RIP)
-// |-------------------------------------------|
-//
-// In Genesis:
-//     [1:1] In the beginning when God created the heavens and the earth,
-//     [1:2] the earth was a formless void and darkness covered the face of the deep,
-//      while a wind from God swept over the face of the waters.
-//     [1:3] Then God said, "Let there be light"; and there was light.
-//
-// Read ./genesis-1 for an introduction
-// Read ./light.man to learn about controls.
-//
-// Amen.
+/*   
+    \----------------------------------------------------------/
+    |                        light                             |
+    /----------------------------------------------------------\
+    |                                                          |
+    | light is a terminal utility to buffer medium amount of   |
+    | text.                                                    |
+    x..........................................................x
+    |                                                          |
+    | It has all the familiar features to a text editor and is |
+    | extremely fast and easy to use                           |
+    |                                                          |
+    |                                                          |
+    |                (1) FASTER THAN VIM                       |
+    |               (2) EASIER THAN NEOVIM                     |
+    |                 (3) UNDER 1000LOC                        |
+    |                                                          |
+    | (1) is untested but remains conclusive due to (3)        |
+    | (2) is untested but remains conclusive due to (3)        |
+    |                                                          |
+    |                                                          |
+    x..........................................................x 
+    |                       MECHANISMS                         |
+    x..........................................................x 
+    |                                                          |
+    | As you dig into the code, you will realize that all      |
+    | text is buffered in a 2D array <DISPLAY_BUFFER> suppo-   |
+    | rting upto <MAX_NUMBER_OF_ROWS> and <MAX_NUMBER_OF_COLS> |
+    |                                                          |
+    | Two threads are spawned to :                             |
+    | (a) listen for IO on the 'keyboard'                      |
+    | (b) write IO to the buffer                               |
+    |                                                          |
+    | (a) is spawned through <input> function                  |                                      
+    | (b) is spawned through <display_buffer> function         |
+    |                                                          |
+    | <display_buffer> is the core function and it defines     |
+    |                                                          |
+    | (a) plugins                                              |
+    | (b) shortcuts                                            |
+    |                                                          | 
+    | (a) are supposed to alter the overall structure of       |
+    | core <DISPLAY_BUFFER>.                                   |
+    | For example, _line_numbers_ is a plugin,                 |
+    |      _text_highlight_ under cursor is a plugin           |
+    |                                                          | 
+    | (b) are called with Ctrl+ prefix and are designed to     |
+    | make writing text easier                                 |
+    | For example, adding a _line_above_ or _line_below_       |
+    |   the current line is a shortcut,                        |
+    |   _saving_ the file is a shortcut,                       |
+    |   _going_to_end_of_line_ is a shortcut.                  |
+    |                                                          |
+    x..........................................................x 
+    |                       LICENSE                            |
+    x..........................................................x 
+    |                                                          |
+    | This work is protected under GPL License, see ./LICENSE  |
+    |                                                          |
+    \----------------------------------------------------------/
+    |                        light                             |
+    /----------------------------------------------------------\
+*/ 
 
 #include<stdio.h>
 #include<unistd.h>
@@ -654,6 +695,24 @@ char* resize_string(const char* result) {
     return res;
 }
 
+// EHHHH code duplication is not always so avoidable is it
+// Use Ctrl + P to delete a char opposite to backspace
+void shortcut_delete_backwards(char ch) {
+    if(ch == 'P') {
+        if(CURRENT_COL < strlen(DISPLAY_BUFFER[CURRENT_ROW])) {
+        CURRENT_COL++;
+        if(CURRENT_COL > 0) {
+            CURRENT_COL -= 1;
+
+            memmove(&DISPLAY_BUFFER[CURRENT_ROW][CURRENT_COL],
+                    &DISPLAY_BUFFER[CURRENT_ROW][CURRENT_COL + 1],
+                    MAX_NUMBER_OF_COLS - CURRENT_COL - 1);
+
+            DISPLAY_BUFFER[CURRENT_ROW][MAX_NUMBER_OF_COLS - 1] = '\0';
+        }
+        }
+    }
+}
 
 
 /*
@@ -855,6 +914,7 @@ void buffer_display() {
             shortcut_goto_first_line(current_char.ch);
             shortcut_goto_last_line(current_char.ch);
             shortcut_save_file(current_char.ch);
+            shortcut_delete_backwards(current_char.ch);
             break;
 
         default: break;
