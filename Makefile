@@ -1,16 +1,12 @@
-CC = cc
-CFLAGS = -w -O2
+PREFIX ?= /usr/local
 
-TARGET = light
+.PHONY: clean install
 
-all: $(TARGET)
+light: light.c
+	cc -Wall -Wextra -O2 -pthread light.c -o light
 
-$(TARGET): light.HolyCode.c
-	$(CC) $(CFLAGS) -o $(TARGET) light.HolyCode.c
-
-install: $(TARGET)
-	sudo cp $(TARGET) /usr/bin/
-	sudo chmod +x /usr/bin/$(TARGET)
+install: light
+	install -Dm755 light "$(DESTDIR)$(PREFIX)/bin/light"
 
 clean:
-	rm -f $(TARGET)
+	rm -f light
