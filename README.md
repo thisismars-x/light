@@ -5,7 +5,7 @@ light is a text-editor, which is extremely light(under 45kB), has a modest amoun
 makes writing and editing code simple.
 ```
 
-![light-code-editor](light.png)
+![light-code-editor](./light2.png)
 
 ```code
 Things you might need to know
